@@ -30,7 +30,7 @@
     </div>
 
     <!-- Messages list -->
-    <div v-else-if="currentMessages.length > 0">
+    <div v-else-if="currentMessages.length > 0 && currentUser">
         <div v-for="message in currentMessages"
         :key="message.id"
         :class="[

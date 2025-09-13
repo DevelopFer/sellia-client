@@ -38,9 +38,18 @@
     </div>
     
     <div class="flex-1 min-w-0">
-      <p class="font-medium text-gray-900 truncate text-base md:text-sm">
-        {{ user.name }}
-      </p>
+      <div class="flex items-center justify-between">
+        <p class="font-medium text-gray-900 truncate text-base md:text-sm">
+          {{ user.name }}
+        </p>
+        <!-- Unread message badge -->
+        <div 
+          v-if="user.unreadCount && user.unreadCount > 0"
+          class="min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-semibold rounded-full flex items-center justify-center ml-2"
+        >
+          {{ user.unreadCount > 99 ? '99+' : user.unreadCount }}
+        </div>
+      </div>
       <p class="text-xs text-gray-600 truncate mb-1">
         @{{ user.username }}
       </p>

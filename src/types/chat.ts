@@ -4,6 +4,7 @@ export interface User {
   name: string
   isOnline: boolean
   avatar?: string
+  unreadCount?: number
 }
 
 export interface Message {

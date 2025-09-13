@@ -95,6 +95,15 @@ export function useSocket() {
     emit('conversation:leave', { conversationId, userId })
   }
 
+  // Message methods
+  const onNewMessage = (callback: (event: MessageEvent) => void) => {
+    on('message:new', callback)
+  }
+
+  const offNewMessage = (callback?: (event: MessageEvent) => void) => {
+    off('message:new', callback)
+  }
+
   // Cleanup on unmount
   onUnmounted(() => {
     disconnect()
@@ -120,6 +129,10 @@ export function useSocket() {
     // Conversation methods
     joinConversation,
     leaveConversation,
+    
+    // Message methods
+    onNewMessage,
+    offNewMessage,
   }
 }
 
@@ -138,7 +151,17 @@ export interface ConversationEvent {
 
 export interface MessageEvent {
   conversationId: string
-  message: any
+  message: {
+    id: string
+    content: string
+    senderId: string
+    conversationId: string
+    createdAt: string
+    sender: {
+      id: string
+      name: string
+    }
+  }
   timestamp: string
 }
 
