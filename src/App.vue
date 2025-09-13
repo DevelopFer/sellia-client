@@ -21,7 +21,24 @@ import { RouterView } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import { SunIcon, MoonIcon } from 'lucide-vue-next'
 import { useDark, useToggle } from '@vueuse/core'
+import { onMounted, onUnmounted } from 'vue'
+import { useUsersStore } from '@/stores/users'
 
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
+const usersStore = useUsersStore()
+
+// Handle cleanup when user closes browser/tab
+const handleBeforeUnload = () => {
+  usersStore.cleanupSocket()
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+  usersStore.cleanupSocket()
+})
 </script>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, Message, CurrentUser, Conversation } from '@/types/chat'
 import { usersApi, conversationsApi, messagesApi } from '@/api'
+import { useSocket, type UserStatusEvent } from '@/composables/useSocket'
 
 export const useUsersStore = defineStore('users', () => {
   // State
@@ -25,6 +26,72 @@ export const useUsersStore = defineStore('users', () => {
   const isLoadingMessages = ref(false)
   
   const selectedUserId = ref<string | number | null>(null)
+
+  // Socket integration
+  const socket = useSocket()
+
+  // Track if socket is already initialized to prevent duplicate connections
+  const isSocketInitialized = ref(false)
+
+  // Initialize socket connection and event listeners
+  const initializeSocket = () => {
+    if (isSocketInitialized.value) {
+      console.log('Socket already initialized, skipping...')
+      return
+    }
+
+    console.log('Initializing socket connection...')
+    socket.connect()
+    isSocketInitialized.value = true
+    
+    // Listen for user status changes
+    socket.on('user:status_changed', (data: UserStatusEvent) => {
+      console.log('User status changed:', data)
+      const user = users.value.find(u => String(u.id) === String(data.userId))
+      if (user) {
+        user.isOnline = data.isOnline
+        console.log(`Updated user ${user.name} status to ${data.isOnline ? 'online' : 'offline'}`)
+      } else {
+        console.log('User not found in current users list:', data.userId)
+      }
+    })
+
+    // Listen for socket connection confirmation
+    socket.on('user:online_confirmed', (data: { userId: string; isOnline: boolean }) => {
+      console.log('User online status confirmed:', data)
+    })
+
+    socket.on('user:offline_confirmed', (data: { userId: string; isOnline: boolean }) => {
+      console.log('User offline status confirmed:', data)
+    })
+
+    // Listen for socket errors
+    socket.on('user:error', (error: { message: string }) => {
+      console.error('Socket user error:', error.message)
+    })
+
+    // Listen for socket connection events
+    socket.on('connect', () => {
+      console.log('Socket connected successfully')
+    })
+
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason)
+    })
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error)
+    })
+  }
+
+  // Cleanup socket connection
+  const cleanupSocket = () => {
+    if (currentUser.value) {
+      socket.setUserOffline(String(currentUser.value.id))
+    }
+    socket.disconnect()
+    isSocketInitialized.value = false
+  }
 
   // Getters
   const selectedUser = computed(() => {
@@ -96,9 +163,26 @@ export const useUsersStore = defineStore('users', () => {
   
   const setCurrentUser = (user: CurrentUser) => {
     currentUser.value = user
+    
+    // Initialize socket connection only if not already initialized
+    if (!isSocketInitialized.value) {
+      initializeSocket()
+    }
+    
+    // Set user as online via socket - wait a bit for connection to establish
+    setTimeout(() => {
+      console.log('Setting user online:', user.id)
+      socket.setUserOnline(String(user.id))
+    }, 500)
   }
   
   const logout = () => {
+    // Set user offline before clearing data
+    if (currentUser.value) {
+      socket.setUserOffline(String(currentUser.value.id))
+    }
+    
+    cleanupSocket()
     currentUser.value = null
     selectedUserId.value = null
     currentConversation.value = null
@@ -225,6 +309,8 @@ export const useUsersStore = defineStore('users', () => {
     isLoadingUsers,
     isLoadingConversation,
     isLoadingMessages,
+    // Socket state
+    isSocketInitialized,
     // Getters
     selectedUser,
     currentMessages,
@@ -243,6 +329,9 @@ export const useUsersStore = defineStore('users', () => {
     loadUsers,
     loadNextPage,
     loadPrevPage,
-    loadSpecificPage
+    loadSpecificPage,
+    // Socket actions
+    initializeSocket,
+    cleanupSocket
   }
 })

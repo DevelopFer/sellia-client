@@ -45,5 +45,4 @@
 
   const selectedUser = computed(() => usersStore.selectedUser);
 
-
 </script>
