@@ -1,61 +1,49 @@
 <template>
-  <main class="container mx-auto px-4 py-8">
-    <h1 class="text-4xl font-bold mb-6">Welcome to Sellia</h1>
-    
-    <div class="grid gap-6 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Card Title</CardTitle>
-          <CardDescription>
-            Card Description
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Card Content</p>
-        </CardContent>
-        <CardFooter class="flex justify-between">
-          <Button variant="outline">Cancel</Button>
-          <Button>Submit</Button>
-        </CardFooter>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>
-            Available actions you can take
-          </CardDescription>
-        </CardHeader>
-        <CardContent class="grid gap-2">
-          <Button variant="default" class="w-full">
-            Default Button
-          </Button>
-          <Button variant="secondary" class="w-full">
-            Secondary Button
-          </Button>
-          <Button variant="outline" class="w-full">
-            Outline Button
-          </Button>
-          <Button variant="ghost" class="w-full">
-            Ghost Button
-          </Button>
-          <Button variant="destructive" class="w-full">
-            Destructive Button
-          </Button>
-        </CardContent>
-      </Card>
+  <div class="h-screen flex bg-gray-50">
+    <div :class="[
+      'bg-white border-r border-gray-200 flex flex-col transition-transform duration-300 ease-in-out',
+      'w-full md:w-80',
+      'md:block',
+      selectedUser && 'hidden md:block'
+    ]">
+      <div class="p-4 md:p-4 border-b border-gray-200">
+        <UserProfile />
+      </div>
+      <UsersList />
     </div>
-  </main>
+    <div :class="['flex-1 flex flex-col',!selectedUser && 'hidden md:flex',selectedUser && 'flex']">
+      <div v-if="selectedUser" class="flex-1 flex flex-col">
+        <div class="bg-white border-b border-gray-200 px-4 md:px-6 py-4">
+          <div class="flex items-center space-x-3">
+            <GoBackButton/>
+            <ConversationHeader/>
+          </div>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50">
+          <MessagesList />
+        </div>
+        <InputMessage />
+      </div>
+      <ConversationEmptyState v-else/>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
+  import {computed } from 'vue';
+  import { useUsersStore } from '@/stores/users';
+  import UserProfile from '@/components/UserProfile.vue';
+  import UsersList from '@/components/UsersList.vue';
+  import MessagesList from '@/components/messages/MessagesList.vue';
+  import GoBackButton from '@/components/layout/GoBackButton.vue';
+  import ConversationHeader from '@/components/layout/ConversationHeader.vue';
+  import InputMessage from '@/components/layout/InputMessage.vue';
+  import ConversationEmptyState from '@/components/layout/ConversationEmptyState.vue';
+
+  // Use Pinia store
+  const usersStore = useUsersStore();
+
+  const selectedUser = computed(() => usersStore.selectedUser);
+
+
 </script>
