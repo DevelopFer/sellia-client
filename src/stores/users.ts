@@ -4,9 +4,34 @@ import type { User, Message, CurrentUser, Conversation } from '@/types/chat'
 import { usersApi, conversationsApi, messagesApi } from '@/api'
 import { useSocket, type UserStatusEvent } from '@/composables/useSocket'
 
+// LocalStorage utilities for user persistence
+const CURRENT_USER_KEY = 'sellia_current_user'
+
+const saveCurrentUserToStorage = (user: CurrentUser | null) => {
+  try {
+    if (user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
+    } else {
+      localStorage.removeItem(CURRENT_USER_KEY)
+    }
+  } catch (error) {
+    console.warn('Failed to save user to localStorage:', error)
+  }
+}
+
+const loadCurrentUserFromStorage = (): CurrentUser | null => {
+  try {
+    const stored = localStorage.getItem(CURRENT_USER_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch (error) {
+    console.warn('Failed to load user from localStorage:', error)
+    return null
+  }
+}
+
 export const useUsersStore = defineStore('users', () => {
-  // State
-  const currentUser = ref<CurrentUser | null>(null)
+  // State - Initialize currentUser from localStorage
+  const currentUser = ref<CurrentUser | null>(loadCurrentUserFromStorage())
   
   const users = ref<User[]>([])
   
@@ -211,6 +236,9 @@ export const useUsersStore = defineStore('users', () => {
   const setCurrentUser = (user: CurrentUser) => {
     currentUser.value = user
     
+    // Persist user to localStorage
+    saveCurrentUserToStorage(user)
+    
     // Initialize socket connection only if not already initialized
     if (!isSocketInitialized.value) {
       initializeSocket()
@@ -234,6 +262,9 @@ export const useUsersStore = defineStore('users', () => {
     selectedUserId.value = null
     currentConversation.value = null
     messages.value = []
+    
+    // Clear user from localStorage
+    saveCurrentUserToStorage(null)
   }
   
   // Computed properties
@@ -406,4 +437,68 @@ export const useUsersStore = defineStore('users', () => {
     initializeSocket,
     cleanupSocket
   }
+  
+  // Auto-initialize socket if user is already logged in from localStorage
+  const storeInstance = {
+    // State
+    currentUser,
+    users,
+    messages,
+    selectedUserId,
+    currentConversation,
+    // Pagination state
+    currentPage,
+    pageLimit,
+    totalUsers,
+    totalPages,
+    hasNextPage,
+    hasPrevPage,
+    isLoadingUsers,
+    isLoadingConversation,
+    isLoadingMessages,
+    // Socket state
+    isSocketInitialized,
+    // Getters
+    selectedUser,
+    currentMessages,
+    onlineUsersCount,
+    isAuthenticated,
+    // Actions
+    selectUser,
+    clearSelectedUser,
+    setCurrentUser,
+    logout,
+    addMessage,
+    updateUserStatus,
+    addUser,
+    removeUser,
+    // Unread message actions
+    incrementUnreadCount,
+    resetUnreadCount,
+    getUnreadCount,
+    // Pagination actions
+    loadUsers,
+    loadNextPage,
+    loadPrevPage,
+    loadSpecificPage,
+    // Socket actions
+    initializeSocket,
+    cleanupSocket
+  }
+  
+  // Auto-initialize socket if user is already logged in from localStorage
+  if (currentUser.value && !isSocketInitialized.value) {
+    console.log('Auto-initializing socket for persisted user:', currentUser.value?.name)
+    initializeSocket()
+    
+    // Set user as online via socket - wait a bit for connection to establish
+    setTimeout(() => {
+      console.log('Setting persisted user online:', currentUser.value?.id)
+      if (currentUser.value) {
+        socket.setUserOnline(String(currentUser.value.id))
+      }
+    }, 500)
+  }
+  
+  return storeInstance
 })

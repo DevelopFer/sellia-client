@@ -5,7 +5,8 @@ import type {
   MessageResponse, 
   ConversationResponse, 
   FindOrCreateConversationRequest, 
-  CreateConversationRequest 
+  CreateConversationRequest,
+  SearchMessageResult
 } from '@/types/api'
 
 // Messages API calls
@@ -24,6 +25,13 @@ export const messagesApi = {
 
   getAllMessages: async (): Promise<MessageResponse[]> => {
     return api.get(API_ENDPOINTS.MESSAGES)
+  },
+
+  searchMessages: async (query: string): Promise<SearchMessageResult[]> => {
+    if (!query || query.trim().length < 2) {
+      return []
+    }
+    return api.get(API_ENDPOINTS.SEARCH_MESSAGES(query.trim()))
   },
 }
 

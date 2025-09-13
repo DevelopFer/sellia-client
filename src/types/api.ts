@@ -107,6 +107,35 @@ export interface CreateConversationRequest {
   isGroup?: boolean
 }
 
+// Search API Types
+export interface SearchMessageResult {
+  id: string
+  content: string
+  highlightedContent: string
+  createdAt: string
+  sender: {
+    id: string
+    username: string
+    name?: string
+  }
+  conversation: {
+    id: string
+    title?: string
+    isGroup: boolean
+    participants: Array<{
+      id: string
+      username: string
+      name?: string
+    }>
+  }
+}
+
+export interface SearchMessagesResponse {
+  results: SearchMessageResult[]
+  query: string
+  total: number
+}
+
 export interface UserResponse {
   id: number
   username: string
@@ -146,6 +175,7 @@ export const API_ENDPOINTS = {
   USER_MESSAGES: (userId: string) => `/messages/user/${userId}`,
   CONVERSATION_MESSAGES: (conversationId: string) => `/messages/conversation/${conversationId}`,
   SEND_MESSAGE: '/messages/send',
+  SEARCH_MESSAGES: (query: string) => `/messages/search/${encodeURIComponent(query)}`,
   
   // Conversations
   CONVERSATIONS: '/conversations',
