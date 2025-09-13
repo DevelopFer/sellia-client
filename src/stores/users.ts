@@ -80,6 +80,10 @@ export const useUsersStore = defineStore('users', () => {
     selectedUserId.value = null
   }
   
+  const setCurrentUser = (user: CurrentUser) => {
+    currentUser.value = user
+  }
+  
   const addMessage = (content: string, recipientId: number) => {
     if (!content.trim()) return
     
@@ -128,6 +132,7 @@ export const useUsersStore = defineStore('users', () => {
     // Actions
     selectUser,
     clearSelectedUser,
+    setCurrentUser,
     addMessage,
     updateUserStatus,
     addUser,
