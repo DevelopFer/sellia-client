@@ -1,5 +1,6 @@
 export interface User {
   id: string | number
+  username: string
   name: string
   isOnline: boolean
   avatar?: string
@@ -7,10 +8,38 @@ export interface User {
 
 export interface Message {
   id: string | number
-  senderId: string | number
-  recipientId: string | number
   content: string
-  timestamp: Date
+  senderId: string | number
+  conversationId?: string
+  createdAt?: Date | string
+  timestamp?: Date | string // For backward compatibility
+  sender?: {
+    id: string
+    name: string
+  }
+}
+
+export interface Conversation {
+  id: string
+  title?: string
+  isGroup: boolean
+  createdAt: string
+  updatedAt: string
+  participants: ConversationParticipant[]
+  messages?: Message[]
+}
+
+export interface ConversationParticipant {
+  id: string
+  userId: string
+  conversationId: string
+  joinedAt: string
+  role: string
+  user: {
+    id: string
+    username: string
+    name?: string
+  }
 }
 
 export interface CurrentUser {

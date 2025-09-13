@@ -1,6 +1,6 @@
 import { api } from './client'
 import { API_ENDPOINTS } from '@/types/api'
-import type { LoginRequest, LoginResponse, UserResponse, UsernameCheckResponse, CreateUserRequest, CreateUserResponse } from '@/types/api'
+import type { LoginRequest, LoginResponse, UserResponse, UsernameCheckResponse, CreateUserRequest, CreateUserResponse, PaginatedUsersResponse } from '@/types/api'
 
 // Authentication API calls
 export const authApi = {
@@ -42,6 +42,11 @@ export const usersApi = {
 
   getUsers: async (): Promise<UserResponse[]> => {
     const response = await api.get<UserResponse[]>(API_ENDPOINTS.USERS)
+    return response
+  },
+
+  getUsersPaginated: async (page: number = 1, limit: number = 10): Promise<PaginatedUsersResponse> => {
+    const response = await api.get<PaginatedUsersResponse>(`${API_ENDPOINTS.USERS}?page=${page}&limit=${limit}`)
     return response
   },
 

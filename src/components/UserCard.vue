@@ -41,6 +41,9 @@
       <p class="font-medium text-gray-900 truncate text-base md:text-sm">
         {{ user.name }}
       </p>
+      <p class="text-xs text-gray-600 truncate mb-1">
+        @{{ user.username }}
+      </p>
       <p :class="[
         'truncate text-sm md:text-sm',
         user.isOnline ? 'text-green-600' : 'text-gray-500'

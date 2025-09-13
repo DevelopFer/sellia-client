@@ -46,15 +46,24 @@ export interface UsernameCheckResponse {
 // Chat API Types
 export interface SendMessageRequest {
   content: string
-  recipientId: number
+  senderId: string
+  conversationId: string
+  messageType?: string
 }
 
 export interface MessageResponse {
-  id: number
-  senderId: number
-  recipientId: number
+  id: string
   content: string
-  timestamp: string
+  messageType: string
+  senderId: string
+  conversationId: string
+  createdAt: string
+  updatedAt: string
+  sender: {
+    id: string
+    username: string
+    name?: string
+  }
 }
 
 export interface UserResponse {
@@ -62,6 +71,60 @@ export interface UserResponse {
   name: string
   isOnline: boolean
   avatar?: string
+}
+
+export interface ConversationParticipant {
+  id: string
+  userId: string
+  conversationId: string
+  joinedAt: string
+  role: string
+  user: {
+    id: string
+    username: string
+    name?: string
+  }
+}
+
+export interface ConversationResponse {
+  id: string
+  title?: string
+  isGroup: boolean
+  createdAt: string
+  updatedAt: string
+  participants: ConversationParticipant[]
+  messages: MessageResponse[]
+}
+
+export interface FindOrCreateConversationRequest {
+  currentUserId: string
+  otherUserId: string
+}
+
+export interface CreateConversationRequest {
+  participantIds: string[]
+  title?: string
+  isGroup?: boolean
+}
+
+export interface UserResponse {
+  id: number
+  username: string
+  name: string
+  isOnline: boolean
+  avatar?: string
+}
+
+export interface PaginatedUsersResponse {
+  users: UserResponse[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
 }
 
 // API Endpoints
@@ -80,10 +143,13 @@ export const API_ENDPOINTS = {
   
   // Messages
   MESSAGES: '/messages',
-  USER_MESSAGES: (userId: number) => `/messages/user/${userId}`,
+  USER_MESSAGES: (userId: string) => `/messages/user/${userId}`,
+  CONVERSATION_MESSAGES: (conversationId: string) => `/messages/conversation/${conversationId}`,
   SEND_MESSAGE: '/messages/send',
   
   // Conversations
   CONVERSATIONS: '/conversations',
-  CONVERSATION: (conversationId: number) => `/conversations/${conversationId}`,
+  CONVERSATION: (conversationId: string) => `/conversations/${conversationId}`,
+  USER_CONVERSATIONS: (userId: string) => `/conversations/user/${userId}`,
+  FIND_OR_CREATE_CONVERSATION: '/conversations/find-or-create',
 } as const

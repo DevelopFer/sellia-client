@@ -1,34 +1,51 @@
 import { api } from './client'
 import { API_ENDPOINTS } from '@/types/api'
-import type { SendMessageRequest, MessageResponse } from '@/types/api'
+import type { 
+  SendMessageRequest, 
+  MessageResponse, 
+  ConversationResponse, 
+  FindOrCreateConversationRequest, 
+  CreateConversationRequest 
+} from '@/types/api'
 
 // Messages API calls
 export const messagesApi = {
-  getUserMessages: async (userId: number): Promise<MessageResponse[]> => {
-    const response = await api.get<MessageResponse[]>(API_ENDPOINTS.USER_MESSAGES(userId))
-    return response.data
+  getUserMessages: async (userId: string): Promise<MessageResponse[]> => {
+    return api.get(API_ENDPOINTS.USER_MESSAGES(userId))
+  },
+
+  getConversationMessages: async (conversationId: string): Promise<MessageResponse[]> => {
+    return api.get(API_ENDPOINTS.CONVERSATION_MESSAGES(conversationId))
   },
 
   sendMessage: async (data: SendMessageRequest): Promise<MessageResponse> => {
-    const response = await api.post<MessageResponse>(API_ENDPOINTS.SEND_MESSAGE, data)
-    return response.data
+    return api.post(API_ENDPOINTS.SEND_MESSAGE, data)
   },
 
   getAllMessages: async (): Promise<MessageResponse[]> => {
-    const response = await api.get<MessageResponse[]>(API_ENDPOINTS.MESSAGES)
-    return response.data
+    return api.get(API_ENDPOINTS.MESSAGES)
   },
 }
 
 // Conversations API calls
 export const conversationsApi = {
-  getConversations: async (): Promise<any[]> => {
-    const response = await api.get<any[]>(API_ENDPOINTS.CONVERSATIONS)
-    return response.data
+  getConversations: async (): Promise<ConversationResponse[]> => {
+    return api.get(API_ENDPOINTS.CONVERSATIONS)
   },
 
-  getConversation: async (conversationId: number): Promise<any> => {
-    const response = await api.get<any>(API_ENDPOINTS.CONVERSATION(conversationId))
-    return response.data
+  getConversation: async (conversationId: string): Promise<ConversationResponse> => {
+    return api.get(API_ENDPOINTS.CONVERSATION(conversationId))
+  },
+
+  getUserConversations: async (userId: string): Promise<ConversationResponse[]> => {
+    return api.get(API_ENDPOINTS.USER_CONVERSATIONS(userId))
+  },
+
+  findOrCreateConversation: async (data: FindOrCreateConversationRequest): Promise<ConversationResponse> => {
+    return api.post(API_ENDPOINTS.FIND_OR_CREATE_CONVERSATION, data)
+  },
+
+  createConversation: async (data: CreateConversationRequest): Promise<ConversationResponse> => {
+    return api.post(API_ENDPOINTS.CONVERSATIONS, data)
   },
 }

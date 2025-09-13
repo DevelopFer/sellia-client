@@ -7,9 +7,10 @@
     const usersStore = useUsersStore();
     const selectedUser = computed(() => usersStore.selectedUser);
 
-    const sendMessage = () => {
+    const sendMessage = async () => {
         if (!newMessage.value.trim() || !selectedUser.value) return;
-        usersStore.addMessage(newMessage.value, selectedUser.value.id);
+        
+        await usersStore.addMessage(newMessage.value);
         newMessage.value = '';
     };
 
@@ -23,7 +24,7 @@
                 @keyup.enter="sendMessage"
                 type="text"
                 placeholder="Type a message..."
-                class="flex-1 px-4 py-3 md:py-2 text-base md:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="flex-1 px-4 py-3 md:py-2 text-base md:text-sm text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
                 style="font-size: 16px;" 
             />
             <Button
