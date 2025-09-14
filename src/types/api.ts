@@ -70,6 +70,7 @@ export interface UserResponse {
   id: number
   name: string
   isOnline: boolean
+  isBot?: boolean
   avatar?: string
 }
 
@@ -141,6 +142,7 @@ export interface UserResponse {
   username: string
   name: string
   isOnline: boolean
+  isBot?: boolean
   avatar?: string
 }
 

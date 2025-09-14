@@ -3,6 +3,7 @@ export interface User {
   username: string
   name: string
   isOnline: boolean
+  isBot?: boolean
   avatar?: string
   unreadCount?: number
 }

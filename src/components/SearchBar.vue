@@ -9,7 +9,7 @@
         v-model="searchQuery"
         type="text"
         placeholder="Search messages..."
-        class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
+        class="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm"
         @focus="openSearch"
         @keydown.escape="closeSearch"
         @keydown.enter.prevent="handleEnterKey"

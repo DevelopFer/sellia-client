@@ -19,7 +19,7 @@
             <ConversationHeader/>
           </div>
         </div>
-        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50">
+        <div class="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 bg-gray-50 max-h-[calc(90vh-160px)]">
           <MessagesList />
         </div>
         <InputMessage />
@@ -40,7 +40,6 @@
   import InputMessage from '@/components/layout/InputMessage.vue';
   import ConversationEmptyState from '@/components/layout/ConversationEmptyState.vue';
 
-  // Use Pinia store
   const usersStore = useUsersStore();
 
   const selectedUser = computed(() => usersStore.selectedUser);

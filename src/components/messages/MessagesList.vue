@@ -1,11 +1,13 @@
 <script setup lang="ts">
     import { useUsersStore } from '@/stores/users'
-    import { computed } from 'vue';
+    import { computed, watch, nextTick, ref, onMounted } from 'vue';
     
     const usersStore = useUsersStore();
     const currentUser = computed(() => usersStore.currentUser)
     const selectedUser = computed(() => usersStore.selectedUser);
     const isLoadingMessages = computed(() => usersStore.isLoadingMessages);
+
+    const messagesContainer = ref<HTMLElement | null>(null);
 
     const currentMessages = computed(() => {
         return usersStore.currentMessages;
@@ -17,10 +19,41 @@
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
+
+    const scrollToBottom = async (smooth = true) => {
+        await nextTick();
+        if (messagesContainer.value) {
+            messagesContainer.value.scrollTo({
+                top: messagesContainer.value.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        }
+    };
+
+    /** Whenever a new message is received, here we're scrolling to the bottom */
+    watch(currentMessages, (newMessages, oldMessages) => {
+        if (newMessages && newMessages.length > 0) {
+            if (!oldMessages || newMessages.length > oldMessages.length) {
+                scrollToBottom();
+            }
+        }
+    }, { deep: true });
+
+    
+    watch(isLoadingMessages, (newLoading, oldLoading) => {
+        if (oldLoading && !newLoading && currentMessages.value && currentMessages.value.length > 0) {
+            scrollToBottom(false);
+        }
+    });
+
+    onMounted(async () => {
+        await scrollToBottom();
+    });
+
 </script>
 
 <template>
-    <!-- Loading state -->
+    
     <div v-if="isLoadingMessages" class="flex justify-center items-center py-8">
         <svg class="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -29,8 +62,9 @@
         <span class="ml-2 text-sm text-gray-500">Loading messages...</span>
     </div>
 
-    <!-- Messages list -->
-    <div v-else-if="currentMessages.length > 0 && currentUser">
+    <div v-else-if="currentMessages.length > 0 && currentUser" 
+         ref="messagesContainer"
+         class="overflow-y-auto h-full">
         <div v-for="message in currentMessages"
         :key="message.id"
         :class="[
@@ -54,11 +88,11 @@
         </div>
     </div>
 
-    <!-- Empty state -->
     <div v-else-if="selectedUser" class="flex justify-center items-center py-8">
         <div class="text-center">
             <p class="text-gray-500">No messages yet</p>
             <p class="text-sm text-gray-400 mt-1">Start a conversation with {{ selectedUser.name }}</p>
         </div>
     </div>
+
 </template>
