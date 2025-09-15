@@ -135,7 +135,13 @@ export function useSocket() {
     try {
       await emit('user:offline', { userId })
     } catch (error) {
-      console.error('Failed to set user offline:', error)
+      // For offline events, if socket is not available, it's acceptable
+      // User is likely logging out or socket was already disconnected
+      if (error instanceof Error && error.message === 'Socket not initialized') {
+        console.log('Socket already disconnected, user offline status not needed')
+      } else {
+        console.error('Failed to set user offline:', error)
+      }
     }
   }
 

@@ -159,8 +159,11 @@ export const useUsersStore = defineStore('users', () => {
 
   // Cleanup socket connection
   const cleanupSocket = () => {
-    if (currentUser.value) {
-      socket.setUserOffline(String(currentUser.value.id))
+    // Only try to set user offline if socket is connected and we haven't already done it
+    if (currentUser.value && socket.isConnected.value) {
+      socket.setUserOffline(String(currentUser.value.id)).catch((error) => {
+        console.warn('Failed to set user offline during cleanup:', error)
+      })
     }
     socket.disconnect()
     isSocketInitialized.value = false
@@ -275,12 +278,16 @@ export const useUsersStore = defineStore('users', () => {
   }
   
   const logout = () => {
-    // Set user offline before clearing data
-    if (currentUser.value) {
-      socket.setUserOffline(String(currentUser.value.id))
+    // Set user offline before clearing data, but only if socket is connected
+    if (currentUser.value && socket.isConnected.value) {
+      socket.setUserOffline(String(currentUser.value.id)).catch((error) => {
+        console.warn('Failed to set user offline during logout:', error)
+      })
     }
     
-    cleanupSocket()
+    // Clean up socket and clear data
+    socket.disconnect()
+    isSocketInitialized.value = false
     currentUser.value = null
     selectedUserId.value = null
     currentConversation.value = null
