@@ -190,11 +190,10 @@ export const useUsersStore = defineStore('users', () => {
     }
 
     try {
-      // Leave previous conversation if any
-      if (currentConversation.value) {
-        socket.leaveConversation(currentConversation.value.id, String(currentUser.value.id))
-      }
-
+      // NOTE: We don't leave the previous conversation room anymore
+      // This allows users to receive notifications from all their conversations
+      // Users should stay in all conversation rooms to get background notifications
+      
       selectedUserId.value = userId
       isLoadingConversation.value = true
       isLoadingMessages.value = true
@@ -256,7 +255,33 @@ export const useUsersStore = defineStore('users', () => {
     currentConversation.value = null
     messages.value = []
   }
-  
+
+  // Join all user conversations for background notifications
+  const joinAllUserConversations = async () => {
+    if (!currentUser.value) {
+      console.warn('No current user, cannot join conversations')
+      return
+    }
+
+    try {
+      console.log('Joining all user conversations for background notifications...')
+      const userConversations = await conversationsApi.getUserConversations(String(currentUser.value.id))
+      
+      for (const conversation of userConversations) {
+        try {
+          await socket.joinConversation(conversation.id, String(currentUser.value.id))
+          console.log(`📢 Joined conversation room: ${conversation.id}`)
+        } catch (error) {
+          console.warn(`Failed to join conversation ${conversation.id}:`, error)
+        }
+      }
+      
+      console.log(`✅ Joined ${userConversations.length} conversation rooms for notifications`)
+    } catch (error) {
+      console.error('Failed to join user conversations:', error)
+    }
+  }
+
   const setCurrentUser = (user: CurrentUser) => {
     currentUser.value = user
     
@@ -274,6 +299,9 @@ export const useUsersStore = defineStore('users', () => {
       socket.setUserOnline(String(user.id)).catch((error) => {
         console.error('Failed to set user online:', error)
       })
+      
+      // Join all user conversations for background notifications
+      joinAllUserConversations()
     }, 500)
   }
   
@@ -468,69 +496,73 @@ export const useUsersStore = defineStore('users', () => {
     cleanupSocket
   }
   
-  // Auto-initialize socket if user is already logged in from localStorage
-  const storeInstance = {
-    // State
-    currentUser,
-    users,
-    messages,
-    selectedUserId,
-    currentConversation,
-    // Pagination state
-    currentPage,
-    pageLimit,
-    totalUsers,
-    totalPages,
-    hasNextPage,
-    hasPrevPage,
-    isLoadingUsers,
-    isLoadingConversation,
-    isLoadingMessages,
-    // Socket state
-    isSocketInitialized,
-    // Getters
-    selectedUser,
-    currentMessages,
-    onlineUsersCount,
-    isAuthenticated,
-    // Actions
-    selectUser,
-    clearSelectedUser,
-    setCurrentUser,
-    logout,
-    addMessage,
-    updateUserStatus,
-    addUser,
-    removeUser,
-    // Unread message actions
-    incrementUnreadCount,
-    resetUnreadCount,
-    getUnreadCount,
-    // Pagination actions
-    loadUsers,
-    loadNextPage,
-    loadPrevPage,
-    loadSpecificPage,
-    // Socket actions
-    initializeSocket,
-    cleanupSocket
-  }
+  // // Auto-initialize socket if user is already logged in from localStorage
+  // const storeInstance = {
+  //   // State
+  //   currentUser,
+  //   users,
+  //   messages,
+  //   selectedUserId,
+  //   currentConversation,
+  //   // Pagination state
+  //   currentPage,
+  //   pageLimit,
+  //   totalUsers,
+  //   totalPages,
+  //   hasNextPage,
+  //   hasPrevPage,
+  //   isLoadingUsers,
+  //   isLoadingConversation,
+  //   isLoadingMessages,
+  //   // Socket state
+  //   isSocketInitialized,
+  //   // Getters
+  //   selectedUser,
+  //   currentMessages,
+  //   onlineUsersCount,
+  //   isAuthenticated,
+  //   // Actions
+  //   selectUser,
+  //   clearSelectedUser,
+  //   setCurrentUser,
+  //   logout,
+  //   addMessage,
+  //   updateUserStatus,
+  //   addUser,
+  //   removeUser,
+  //   // Unread message actions
+  //   incrementUnreadCount,
+  //   resetUnreadCount,
+  //   getUnreadCount,
+  //   // Pagination actions
+  //   loadUsers,
+  //   loadNextPage,
+  //   loadPrevPage,
+  //   loadSpecificPage,
+  //   // Socket actions
+  //   initializeSocket,
+  //   cleanupSocket,
+  //   joinAllUserConversations
+  // }
   
-  // Auto-initialize socket if user is already logged in from localStorage
-  if (currentUser.value && !isSocketInitialized.value) {
-    console.log('Auto-initializing socket for persisted user:', currentUser.value?.name)
-    initializeSocket()
+  // // Auto-initialize socket if user is already logged in from localStorage
+  // if (currentUser.value && !isSocketInitialized.value) {
+  //   console.log('Auto-initializing socket for persisted user:', currentUser.value?.name)
+  //   initializeSocket()
     
-    // Set user as online via socket - wait a bit for connection to establish
-    setTimeout(() => {
-      console.log('Setting persisted user online:', currentUser.value?.id)
-      if (currentUser.value) {
-        socket.setUserOnline(String(currentUser.value.id)).catch((error) => {
-          console.error('Failed to set persisted user online:', error)
-        })
-      }
-    }, 500)
-  }
+  //   // Set user as online via socket - wait a bit for connection to establish
+  //   setTimeout(() => {
+  //     console.log('Setting persisted user online:', currentUser.value?.id)
+  //     if (currentUser.value) {
+  //       socket.setUserOnline(String(currentUser.value.id)).catch((error) => {
+  //         console.error('Failed to set persisted user online:', error)
+  //       })
+        
+  //       // Join all user conversations for background notifications
+  //       joinAllUserConversations()
+  //     }
+  //   }, 500)
+  // }
   
-  return storeInstance
+  // return storeInstance
 })
