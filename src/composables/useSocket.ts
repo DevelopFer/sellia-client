@@ -116,16 +116,28 @@ export function useSocket() {
 
   // Conversation methods
   const joinConversation = (conversationId: string, userId: string) => {
+    console.log('🚪 Joining conversation:', { conversationId, userId });
     emit('conversation:join', { conversationId, userId })
   }
 
   const leaveConversation = (conversationId: string, userId: string) => {
+    console.log('🚪 Leaving conversation:', { conversationId, userId });
     emit('conversation:leave', { conversationId, userId })
   }
 
   // Message methods
   const onNewMessage = (callback: (event: MessageEvent) => void) => {
-    on('message:new', callback)
+    const wrappedCallback = (event: MessageEvent) => {
+      console.log('🔔 Message received via socket:', {
+        conversationId: event.conversationId,
+        messageId: event.message?.id,
+        senderId: event.message?.senderId,
+        timestamp: event.timestamp,
+        content: event.message?.content?.substring(0, 50) + '...'
+      });
+      callback(event);
+    };
+    on('message:new', wrappedCallback)
   }
 
   const offNewMessage = (callback?: (event: MessageEvent) => void) => {

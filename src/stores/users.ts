@@ -138,6 +138,23 @@ export const useUsersStore = defineStore('users', () => {
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error)
     })
+
+    // Listen for conversation join/leave confirmations
+    socket.on('conversation:joined', (data: { conversationId: string; roomInfo?: any }) => {
+      console.log('✅ Successfully joined conversation:', data.conversationId, 'Room info:', data.roomInfo)
+    })
+
+    socket.on('conversation:error', (error: { message: string }) => {
+      console.error('❌ Conversation error:', error.message)
+    })
+
+    socket.on('conversation:user_joined', (data: { conversationId: string; userId: string }) => {
+      console.log('👤 User joined conversation:', data)
+    })
+
+    socket.on('conversation:user_left', (data: { conversationId: string; userId: string }) => {
+      console.log('👤 User left conversation:', data)
+    })
   }
 
   // Cleanup socket connection
