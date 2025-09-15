@@ -128,6 +128,30 @@ export const useUsersStore = defineStore('users', () => {
   
     socket.on('connect', () => {
       console.log('Socket connected successfully')
+      
+      // Request current online users from server
+      socket.emit('request:online_users', {})
+      
+      // Refresh user online status from database after reconnection
+      if (users.value.length > 0) {
+        setTimeout(async () => {
+          try {
+            console.log('Refreshing user online status from database...')
+            const response = await usersApi.getUsersPaginated(currentPage.value, pageLimit.value)
+            
+            // Update only the isOnline status
+            response.users.forEach(dbUser => {
+              const localUser = users.value.find(u => String(u.id) === String(dbUser.id))
+              if (localUser && localUser.isOnline !== dbUser.isOnline) {
+                console.log(`Updated ${localUser.name} status: ${localUser.isOnline ? 'online' : 'offline'} → ${dbUser.isOnline ? 'online' : 'offline'}`)
+                localUser.isOnline = dbUser.isOnline || false
+              }
+            })
+          } catch (error) {
+            console.error('Failed to refresh user online status:', error)
+          }
+        }, 1000)
+      }
     })
 
     socket.on('disconnect', (reason) => {
@@ -136,6 +160,20 @@ export const useUsersStore = defineStore('users', () => {
 
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error)
+    })
+
+    // Listen for current online users response
+    socket.on('online_users:current', (data: { userIds: string[]; timestamp: string }) => {
+      console.log('📡 Received current online users:', data.userIds)
+      
+      // Update user online status based on server response
+      users.value.forEach(user => {
+        const isCurrentlyOnline = data.userIds.includes(String(user.id))
+        if (user.isOnline !== isCurrentlyOnline) {
+          console.log(`🔄 Updating ${user.name} status: ${user.isOnline ? 'online' : 'offline'} → ${isCurrentlyOnline ? 'online' : 'offline'}`)
+          user.isOnline = isCurrentlyOnline
+        }
+      })
     })
 
   
@@ -421,7 +459,7 @@ export const useUsersStore = defineStore('users', () => {
           id: user.id,
           username: user.username,
           name: user.name,
-          isOnline: user.isOnline || false,
+          isOnline: user.isOnline || false, // Use database as source of truth for online status
           avatar: user.avatar,
           unreadCount: 0
         }))
