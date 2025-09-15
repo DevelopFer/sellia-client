@@ -34,7 +34,7 @@ export const useUsersStore = defineStore('users', () => {
   
   const users = ref<User[]>([])
   
-  // Pagination state
+  /**Pagination */
   const currentPage = ref(1)
   const pageLimit = ref(10) // Default to 10 users per page
   const totalUsers = ref(0)
@@ -43,7 +43,7 @@ export const useUsersStore = defineStore('users', () => {
   const hasPrevPage = ref(false)
   const isLoadingUsers = ref(false)
   
-  // Conversation and messages state
+  /* Current conversation and messages */
   const currentConversation = ref<Conversation | null>(null)
   const messages = ref<Message[]>([])
   const isLoadingConversation = ref(false)
@@ -51,13 +51,13 @@ export const useUsersStore = defineStore('users', () => {
   
   const selectedUserId = ref<string | number | null>(null)
 
-  // Socket integration
+  /* Socket */
   const socket = useSocket()
 
-  // Track if socket is already initialized to prevent duplicate connections
+  
   const isSocketInitialized = ref(false)
 
-  // Initialize socket connection and event listeners
+  
   const initializeSocket = () => {
     if (isSocketInitialized.value) {
       console.log('Socket already initialized, skipping...')
@@ -68,7 +68,7 @@ export const useUsersStore = defineStore('users', () => {
     socket.connect()
     isSocketInitialized.value = true
     
-    // Listen for user status changes
+  
     socket.on('user:status_changed', (data: UserStatusEvent) => {
       console.log('User status changed:', data)
       const user = users.value.find(u => String(u.id) === String(data.userId))
@@ -80,7 +80,7 @@ export const useUsersStore = defineStore('users', () => {
       }
     })
 
-    // Listen for socket connection confirmation
+  
     socket.on('user:online_confirmed', (data: { userId: string; isOnline: boolean }) => {
       console.log('User online status confirmed:', data)
     })
@@ -89,26 +89,26 @@ export const useUsersStore = defineStore('users', () => {
       console.log('User offline status confirmed:', data)
     })
 
-    // Listen for socket errors
+  
     socket.on('user:error', (error: { message: string }) => {
       console.error('Socket user error:', error.message)
     })
 
-    // Listen for new message events
+  
     socket.onNewMessage((event) => {
       console.log('New message received:', event)
       
-      // If this is a message from another user
+  
       if (currentUser.value && String(event.message.senderId) !== String(currentUser.value.id)) {
         const messageFromUserId = event.message.senderId
         const messageConversationId = event.conversationId
         
-        // Check if this message is from the currently active conversation
+  
         const isActiveConversation = currentConversation.value && 
           String(currentConversation.value.id) === String(messageConversationId)
         
         if (isActiveConversation) {
-          // Add message to current conversation messages
+  
           messages.value.push({
             id: event.message.id,
             content: event.message.content,
@@ -119,13 +119,13 @@ export const useUsersStore = defineStore('users', () => {
             sender: event.message.sender
           })
         } else {
-          // Increment unread count for the user who sent the message
+  
           incrementUnreadCount(messageFromUserId)
         }
       }
     })
 
-    // Listen for socket connection events
+  
     socket.on('connect', () => {
       console.log('Socket connected successfully')
     })
@@ -138,7 +138,7 @@ export const useUsersStore = defineStore('users', () => {
       console.error('Socket connection error:', error)
     })
 
-    // Listen for conversation join/leave confirmations
+  
     socket.on('conversation:joined', (data: { conversationId: string; roomInfo?: any }) => {
       console.log('✅ Successfully joined conversation:', data.conversationId, 'Room info:', data.roomInfo)
     })
@@ -156,9 +156,8 @@ export const useUsersStore = defineStore('users', () => {
     })
   }
 
-  // Cleanup socket connection
+  
   const cleanupSocket = () => {
-    // Only try to set user offline if socket is connected and we haven't already done it
     if (currentUser.value && socket.isConnected.value) {
       socket.setUserOffline(String(currentUser.value.id)).catch((error) => {
         console.warn('Failed to set user offline during cleanup:', error)
@@ -168,7 +167,10 @@ export const useUsersStore = defineStore('users', () => {
     isSocketInitialized.value = false
   }
 
-  // Getters
+
+
+
+  /** GETTERS */
   const selectedUser = computed(() => {
     return users.value.find((user: User) => user.id === selectedUserId.value)
   })
@@ -181,7 +183,10 @@ export const useUsersStore = defineStore('users', () => {
     return users.value.filter((user: User) => user.isOnline).length
   })
 
-  // Actions
+
+
+
+  /** ACTIONS */
   const selectUser = async (userId: string | number) => {
     if (!currentUser.value) {
       console.error('No current user set')
@@ -189,22 +194,19 @@ export const useUsersStore = defineStore('users', () => {
     }
 
     try {
-      // NOTE: We don't leave the previous conversation room anymore
-      // This allows users to receive notifications from all their conversations
-      // Users should stay in all conversation rooms to get background notifications
       
       selectedUserId.value = userId
       isLoadingConversation.value = true
       isLoadingMessages.value = true
       
-      // Reset unread count for this user since we're viewing their conversation
+      
       resetUnreadCount(userId)
       
-      // Convert IDs to strings for API calls
+      
       const currentUserIdStr = String(currentUser.value.id)
       const otherUserIdStr = String(userId)
       
-      // Find or create conversation between current user and selected user
+      
       const conversation = await conversationsApi.findOrCreateConversation({
         currentUserId: currentUserIdStr,
         otherUserId: otherUserIdStr
@@ -212,10 +214,8 @@ export const useUsersStore = defineStore('users', () => {
       
       currentConversation.value = conversation as Conversation
       
-      // Load messages for this conversation
       const conversationMessages = await messagesApi.getConversationMessages(conversation.id)
       
-      // Transform API messages to match our Message interface
       messages.value = conversationMessages.map(msg => ({
         id: msg.id,
         content: msg.content,
@@ -229,11 +229,9 @@ export const useUsersStore = defineStore('users', () => {
         }
       }))
       
-      // Join the conversation room for real-time message notifications
-      // Don't await - let it happen in the background
+
       socket.joinConversation(conversation.id, currentUserIdStr).catch((error) => {
         console.error('Failed to join conversation room:', error)
-        // Continue execution even if room join fails
       })
       
     } catch (error) {
@@ -245,7 +243,6 @@ export const useUsersStore = defineStore('users', () => {
   }
   
   const clearSelectedUser = () => {
-    // Leave current conversation if any
     if (currentConversation.value && currentUser.value) {
       socket.leaveConversation(currentConversation.value.id, String(currentUser.value.id))
     }
@@ -255,7 +252,6 @@ export const useUsersStore = defineStore('users', () => {
     messages.value = []
   }
 
-  // Join all user conversations for background notifications
   const joinAllUserConversations = async () => {
     if (!currentUser.value) {
       console.warn('No current user, cannot join conversations')
@@ -284,35 +280,29 @@ export const useUsersStore = defineStore('users', () => {
   const setCurrentUser = (user: CurrentUser) => {
     currentUser.value = user
     
-    // Persist user to localStorage
     saveCurrentUserToStorage(user)
     
-    // Initialize socket connection only if not already initialized
     if (!isSocketInitialized.value) {
       initializeSocket()
     }
     
-    // Set user as online via socket - wait a bit for connection to establish
     setTimeout(() => {
       console.log('Setting user online:', user.id)
       socket.setUserOnline(String(user.id)).catch((error) => {
         console.error('Failed to set user online:', error)
       })
       
-      // Join all user conversations for background notifications
       joinAllUserConversations()
     }, 500)
   }
   
   const logout = () => {
-    // Set user offline before clearing data, but only if socket is connected
     if (currentUser.value && socket.isConnected.value) {
       socket.setUserOffline(String(currentUser.value.id)).catch((error) => {
         console.warn('Failed to set user offline during logout:', error)
       })
     }
     
-    // Clean up socket and clear data
     socket.disconnect()
     isSocketInitialized.value = false
     currentUser.value = null
@@ -320,11 +310,9 @@ export const useUsersStore = defineStore('users', () => {
     currentConversation.value = null
     messages.value = []
     
-    // Clear user from localStorage
     saveCurrentUserToStorage(null)
   }
   
-  // Computed properties
   const isAuthenticated = computed(() => currentUser.value !== null)
   
   const addMessage = async (content: string) => {
@@ -338,7 +326,6 @@ export const useUsersStore = defineStore('users', () => {
         messageType: 'text'
       })
       
-      // Add the new message to our local state
       messages.value.push({
         id: newMessage.id,
         content: newMessage.content,
@@ -378,7 +365,6 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  // Unread message tracking
   const incrementUnreadCount = (userId: string | number) => {
     const user = users.value.find((u: User) => String(u.id) === String(userId))
     if (user) {
@@ -398,13 +384,11 @@ export const useUsersStore = defineStore('users', () => {
     return user?.unreadCount || 0
   }
 
-  // Pagination actions
   const loadUsers = async (page: number = 1) => {
     try {
       isLoadingUsers.value = true
       const response = await usersApi.getUsersPaginated(page, pageLimit.value)
       
-      // Replace users array with new page data, excluding current user
       users.value = response.users
         .filter(user => currentUser.value && String(user.id) !== String(currentUser.value.id))
         .map(user => ({
@@ -413,10 +397,10 @@ export const useUsersStore = defineStore('users', () => {
           name: user.name,
           isOnline: user.isOnline || false,
           avatar: user.avatar,
-          unreadCount: 0 // Initialize unread count to 0
+          unreadCount: 0
         }))
       
-      // Update pagination state
+      
       currentPage.value = response.pagination.page
       totalUsers.value = response.pagination.total
       totalPages.value = response.pagination.totalPages
@@ -449,13 +433,14 @@ export const useUsersStore = defineStore('users', () => {
   }
 
   return {
-    // State
+    
     currentUser,
     users,
     messages,
     selectedUserId,
     currentConversation,
-    // Pagination state
+    
+    
     currentPage,
     pageLimit,
     totalUsers,
@@ -465,14 +450,17 @@ export const useUsersStore = defineStore('users', () => {
     isLoadingUsers,
     isLoadingConversation,
     isLoadingMessages,
-    // Socket state
+    
+    
     isSocketInitialized,
-    // Getters
+    
+    
     selectedUser,
     currentMessages,
     onlineUsersCount,
     isAuthenticated,
-    // Actions
+    
+
     selectUser,
     clearSelectedUser,
     setCurrentUser,
@@ -481,16 +469,19 @@ export const useUsersStore = defineStore('users', () => {
     updateUserStatus,
     addUser,
     removeUser,
-    // Unread message actions
+    
+
     incrementUnreadCount,
     resetUnreadCount,
     getUnreadCount,
-    // Pagination actions
+    
+    
     loadUsers,
     loadNextPage,
     loadPrevPage,
     loadSpecificPage,
-    // Socket actions
+    
+    
     initializeSocket,
     cleanupSocket
   }
