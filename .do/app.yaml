@@ -1,30 +1,7 @@
 # Digital Ocean App Platform Configuration for Vue.js Client
 name: sellia-client
-services:
-- name: web
-  source_dir: /
-  github:
-    repo: DevelopFer/sellia-client
-    branch: main
-  build_command: npm run build:prod
-  dockerfile_path: Dockerfile.production
-  environment_slug: node-js
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  http_port: 80
-  routes:
-  - path: /
-  envs:
-  - key: VITE_API_URL
-    value: https://sellia-api.ondigitalocean.app/api
-  - key: VITE_SOCKET_URL
-    value: https://sellia-api.ondigitalocean.app
-  - key: VITE_APP_TITLE
-    value: Sellia Chat
-  - key: VITE_NODE_ENV
-    value: production
 
-# Static site configuration (alternative to dockerized deployment)
+# Use static site deployment (recommended for frontend apps)
 static_sites:
 - name: frontend
   source_dir: /
@@ -36,9 +13,9 @@ static_sites:
   environment_slug: node-js
   envs:
   - key: VITE_API_URL
-    value: https://sellia-api.ondigitalocean.app/api
+    value: https://sellia-api-9ck6l.ondigitalocean.app/api
   - key: VITE_SOCKET_URL
-    value: https://sellia-api.ondigitalocean.app
+    value: https://sellia-api-9ck6l.ondigitalocean.app
   - key: VITE_APP_TITLE
     value: Sellia Chat
   - key: VITE_NODE_ENV
