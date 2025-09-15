@@ -35,16 +35,14 @@ export const useUsersStore = defineStore('users', () => {
   
   const users = ref<User[]>([])
   
-  /**Pagination */
   const currentPage = ref(1)
-  const pageLimit = ref(10) // Default to 10 users per page
+  const pageLimit = ref(10)
   const totalUsers = ref(0)
   const totalPages = ref(0)
   const hasNextPage = ref(false)
   const hasPrevPage = ref(false)
   const isLoadingUsers = ref(false)
   
-  /* Current conversation and messages */
   const currentConversation = ref<Conversation | null>(null)
   const messages = ref<Message[]>([])
   const isLoadingConversation = ref(false)
@@ -53,10 +51,8 @@ export const useUsersStore = defineStore('users', () => {
   
   const selectedUserId = ref<string | number | null>(null)
 
-  /* Socket */
   const socket = useSocket()
 
-  
   const isSocketInitialized = ref(false)
   const pendingOnlineUserIds = ref<string[]>([])
 
@@ -331,26 +327,21 @@ export const useUsersStore = defineStore('users', () => {
       initializeSocket()
     }
 
-    
-    const isConnected = await socket.waitForConnection(5000)
+    const isConnected = await socket.waitForConnection(10000)
     if (!isConnected) {
       console.error('Socket connection timeout, cannot join conversation')
       return
     }
 
     try {
-      
       selectedUserId.value = userId
       isLoadingConversation.value = true
       isLoadingMessages.value = true
       
-      
       resetUnreadCount(userId)
-      
       
       const currentUserIdStr = String(currentUser.value.id)
       const otherUserIdStr = String(userId)
-      
       
       const conversation = await conversationsApi.findOrCreateConversation({
         currentUserId: currentUserIdStr,
@@ -373,11 +364,9 @@ export const useUsersStore = defineStore('users', () => {
           name: msg.sender.name || msg.sender.username
         }
       }))
-      
 
-      socket.joinConversation(conversation.id, currentUserIdStr).catch((error) => {
-        console.error('Failed to join conversation room:', error)
-      })
+      await socket.joinConversation(conversation.id, currentUserIdStr)
+      console.log(`✅ Successfully joined conversation room: ${conversation.id}`)
       
     } catch (error) {
       console.error('Failed to load conversation:', error)
@@ -447,15 +436,22 @@ export const useUsersStore = defineStore('users', () => {
     /* Wait for socket connection and then set user online */
     setTimeout(async () => {
       try {
+        if (!socket.isConnected.value) {
+          console.log('Socket not connected, waiting for connection...')
+          const connected = await socket.waitForConnection(10000)
+          if (!connected) {
+            console.error('Socket connection timeout')
+            return
+          }
+        }
+        
         console.log('Setting user online:', user.id)
         await socket.setUserOnline(String(user.id))
-        
         
         setTimeout(() => {
           requestOnlineStatus('user-login')
         }, 500)
         
-        /* Join all conversations for background notifications */
         await joinAllUserConversations()
       } catch (error) {
         console.error('Failed to set user online:', error)
@@ -487,15 +483,12 @@ export const useUsersStore = defineStore('users', () => {
     
     isSendingMessage.value = true
     try {
-      
       await messagesApi.sendMessage({
         content: content.trim(),
         senderId: String(currentUser.value.id),
         conversationId: currentConversation.value.id,
         messageType: 'text'
       })
-      
-      
       
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -609,14 +602,25 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
+  if (currentUser.value && !isSocketInitialized.value) {
+    console.log('Auto-initializing socket for existing user session...')
+    setTimeout(() => {
+      initializeSocket()
+      setTimeout(async () => {
+        if (socket.isConnected.value) {
+          await socket.setUserOnline(String(currentUser.value!.id))
+          requestOnlineStatus('auto-init')
+        }
+      }, 1000)
+    }, 100)
+  }
+
   return {
-    
     currentUser,
     users,
     messages,
     selectedUserId,
     currentConversation,
-    
     
     currentPage,
     pageLimit,
@@ -629,9 +633,7 @@ export const useUsersStore = defineStore('users', () => {
     isLoadingMessages,
     isSendingMessage,
     
-    
     isSocketInitialized,
-    
     
     selectedUser,
     currentMessages,
@@ -653,12 +655,10 @@ export const useUsersStore = defineStore('users', () => {
     resetUnreadCount,
     getUnreadCount,
     
-    
     loadUsers,
     loadNextPage,
     loadPrevPage,
     loadSpecificPage,
-    
     
     initializeSocket,
     cleanupSocket
