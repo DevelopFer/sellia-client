@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
-    "preview": "vite preview"
+    "build": "vite build",
+    "build:prod": "vite build --mode production",
+    "type-check": "vue-tsc --noEmit",
+    "preview": "vite preview",
+    "preview:prod": "vite preview --port 3000 --host"
   },
   "dependencies": {
     "@vee-validate/zod": "^4.15.1",
