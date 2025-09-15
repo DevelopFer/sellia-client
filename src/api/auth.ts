@@ -2,7 +2,7 @@ import { api } from './client'
 import { API_ENDPOINTS } from '@/types/api'
 import type { LoginRequest, LoginResponse, UserResponse, UsernameCheckResponse, CreateUserRequest, CreateUserResponse, PaginatedUsersResponse } from '@/types/api'
 
-// Authentication API calls
+
 export const authApi = {
   login: async (data: LoginRequest): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>(API_ENDPOINTS.LOGIN, data)
@@ -14,7 +14,7 @@ export const authApi = {
   },
 }
 
-// Username API calls
+
 export const usernameApi = {
   checkUsername: async (username: string): Promise<UsernameCheckResponse> => {
     const response = await api.get<UsernameCheckResponse>(API_ENDPOINTS.CHECK_USERNAME(username))
@@ -24,11 +24,11 @@ export const usernameApi = {
 
   isUsernameAvailable: async (username: string): Promise<boolean> => {
     const response = await usernameApi.checkUsername(username)
-    return !response.taken // Invert: taken=true means available=false
+    return !response.taken
   },
 }
 
-// Users API calls
+
 export const usersApi = {
   createUser: async (userData: CreateUserRequest): Promise<CreateUserResponse> => {
     const response = await api.post<CreateUserResponse>(API_ENDPOINTS.USERS, userData)

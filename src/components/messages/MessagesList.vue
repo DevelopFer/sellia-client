@@ -23,26 +23,48 @@
     const scrollToBottom = async (smooth = true) => {
         await nextTick();
         if (messagesContainer.value) {
-            messagesContainer.value.scrollTo({
-                top: messagesContainer.value.scrollHeight,
-                behavior: smooth ? 'smooth' : 'auto'
-            });
+            const container = messagesContainer.value;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            
+            // Only scroll if there's content to scroll to
+            if (scrollHeight > clientHeight) {
+                container.scrollTo({
+                    top: scrollHeight,
+                    behavior: smooth ? 'smooth' : 'auto'
+                });
+            }
         }
     };
 
     /** Whenever a new message is received, here we're scrolling to the bottom */
-    watch(currentMessages, (newMessages, oldMessages) => {
+    watch(currentMessages, async (newMessages, oldMessages) => {
         if (newMessages && newMessages.length > 0) {
             if (!oldMessages || newMessages.length > oldMessages.length) {
-                scrollToBottom();
+                // Wait for DOM updates before scrolling
+                await nextTick();
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 50); // Small delay to ensure DOM is fully updated
             }
         }
-    }, { deep: true });
+    }, { deep: true, flush: 'post' });
 
     
     watch(isLoadingMessages, (newLoading, oldLoading) => {
         if (oldLoading && !newLoading && currentMessages.value && currentMessages.value.length > 0) {
             scrollToBottom(false);
+        }
+    });
+
+    // Additional watcher for message count changes to ensure scrolling
+    watch(() => currentMessages.value.length, async (newLength, oldLength) => {
+        if (newLength > oldLength) {
+            // New message was added
+            await nextTick();
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
         }
     });
 
