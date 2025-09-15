@@ -29,7 +29,7 @@ const loadCurrentUserFromStorage = (): CurrentUser | null => {
 }
 
 export const useUsersStore = defineStore('users', () => {
-  // State - Initialize currentUser from localStorage
+  
   const currentUser = ref<CurrentUser | null>(loadCurrentUserFromStorage())
   
   const users = ref<User[]>([])
@@ -56,6 +56,44 @@ export const useUsersStore = defineStore('users', () => {
 
   
   const isSocketInitialized = ref(false)
+  const pendingOnlineUserIds = ref<string[]>([])
+
+  /** Helper function to request online status with retry logic */
+  const requestOnlineStatus = (reason: string = 'manual') => {
+    if (!isSocketInitialized.value) {
+      console.log(`⏳ Socket not initialized yet, cannot request online status (${reason})`)
+      return
+    }
+
+    if (!socket.isConnected.value) {
+      console.log(`⏳ Socket not connected yet, retrying online status request in 1s (${reason})`)
+      setTimeout(() => requestOnlineStatus(`${reason}-retry`), 1000)
+      return
+    }
+
+    console.log(`🔄 Requesting online status: ${reason}`)
+    socket.emit('request:online_users', {})
+  }
+
+  /** Helper function to apply online status to users */
+  const applyOnlineStatus = (onlineUserIds: string[]) => {
+    let updatedCount = 0
+    users.value.forEach(user => {
+      
+      /* Bot users - they should always remain online */
+      if (user.isBot) {
+        return
+      }
+      
+      const isCurrentlyOnline = onlineUserIds.includes(String(user.id))
+      if (user.isOnline !== isCurrentlyOnline) {
+        console.log(`🔄 Updating ${user.name} status: ${user.isOnline ? 'online' : 'offline'} → ${isCurrentlyOnline ? 'online' : 'offline'}`)
+        user.isOnline = isCurrentlyOnline
+        updatedCount++
+      }
+    })
+    console.log(`✅ Applied online status to ${updatedCount} users (skipped bots)`)
+  }
 
   
   const initializeSocket = () => {
@@ -68,11 +106,31 @@ export const useUsersStore = defineStore('users', () => {
     socket.connect()
     isSocketInitialized.value = true
     
+    
+    const syncInterval = setInterval(() => {
+      if (socket.isConnected.value && users.value.length > 0) {
+        requestOnlineStatus('periodic-sync')
+      }
+    }, 30000)
+    
+    
+    const originalCleanup = socket.disconnect
+    socket.disconnect = () => {
+      clearInterval(syncInterval)
+      originalCleanup.call(socket)
+    }
+    
   
     socket.on('user:status_changed', (data: UserStatusEvent) => {
       console.log('User status changed:', data)
       const user = users.value.find(u => String(u.id) === String(data.userId))
       if (user) {
+    
+        if (user.isBot) {
+          console.log(`Skipping status update for bot user: ${user.name}`)
+          return
+        }
+        
         user.isOnline = data.isOnline
         console.log(`Updated user ${user.name} status to ${data.isOnline ? 'online' : 'offline'}`)
       } else {
@@ -129,28 +187,24 @@ export const useUsersStore = defineStore('users', () => {
     socket.on('connect', () => {
       console.log('Socket connected successfully')
       
-      // Request current online users from server
-      socket.emit('request:online_users', {})
-      
-      // Refresh user online status from database after reconnection
+    
+      if (currentUser.value) {
+        console.log('Setting current user online after reconnection:', currentUser.value.id)
+        socket.setUserOnline(String(currentUser.value.id)).catch((error) => {
+          console.error('Failed to set user online after reconnection:', error)
+        })
+      }
+
+      /* Always request current online users after connection */
+      setTimeout(() => {
+        requestOnlineStatus('socket-connected')
+      }, 500)
+
+      /* If users are already loaded, request status again after a longer delay */
       if (users.value.length > 0) {
-        setTimeout(async () => {
-          try {
-            console.log('Refreshing user online status from database...')
-            const response = await usersApi.getUsersPaginated(currentPage.value, pageLimit.value)
-            
-            // Update only the isOnline status
-            response.users.forEach(dbUser => {
-              const localUser = users.value.find(u => String(u.id) === String(dbUser.id))
-              if (localUser && localUser.isOnline !== dbUser.isOnline) {
-                console.log(`Updated ${localUser.name} status: ${localUser.isOnline ? 'online' : 'offline'} → ${dbUser.isOnline ? 'online' : 'offline'}`)
-                localUser.isOnline = dbUser.isOnline || false
-              }
-            })
-          } catch (error) {
-            console.error('Failed to refresh user online status:', error)
-          }
-        }, 1000)
+        setTimeout(() => {
+          requestOnlineStatus('socket-connected-users-loaded')
+        }, 1500)
       }
     })
 
@@ -162,18 +216,19 @@ export const useUsersStore = defineStore('users', () => {
       console.error('Socket connection error:', error)
     })
 
-    // Listen for current online users response
+    
     socket.on('online_users:current', (data: { userIds: string[]; timestamp: string }) => {
       console.log('📡 Received current online users:', data.userIds)
       
-      // Update user online status based on server response
-      users.value.forEach(user => {
-        const isCurrentlyOnline = data.userIds.includes(String(user.id))
-        if (user.isOnline !== isCurrentlyOnline) {
-          console.log(`🔄 Updating ${user.name} status: ${user.isOnline ? 'online' : 'offline'} → ${isCurrentlyOnline ? 'online' : 'offline'}`)
-          user.isOnline = isCurrentlyOnline
-        }
-      })
+    
+      pendingOnlineUserIds.value = data.userIds
+      
+    
+      if (users.value.length > 0) {
+        applyOnlineStatus(data.userIds)
+      } else {
+        console.log('� Users not loaded yet, storing online status for later application')
+      }
     })
 
   
@@ -231,13 +286,13 @@ export const useUsersStore = defineStore('users', () => {
       return
     }
 
-    // Ensure socket is initialized before conversation operations
+    
     if (!isSocketInitialized.value) {
       console.log('Socket not initialized, initializing now...')
       initializeSocket()
     }
 
-    // Wait for socket connection before proceeding
+    
     const isConnected = await socket.waitForConnection(5000)
     if (!isConnected) {
       console.error('Socket connection timeout, cannot join conversation')
@@ -276,7 +331,7 @@ export const useUsersStore = defineStore('users', () => {
         timestamp: new Date(msg.createdAt),
         sender: {
           id: msg.sender.id,
-          name: msg.sender.name || msg.sender.username // Fallback to username if name is undefined
+          name: msg.sender.name || msg.sender.username
         }
       }))
       
@@ -309,13 +364,13 @@ export const useUsersStore = defineStore('users', () => {
       return
     }
 
-    // Ensure socket is initialized and connected
+    
     if (!isSocketInitialized.value) {
       console.log('Socket not initialized for joining conversations, skipping...')
       return
     }
 
-    // Wait for socket connection
+    
     const isConnected = await socket.waitForConnection(5000)
     if (!isConnected) {
       console.warn('Socket connection timeout, cannot join conversations')
@@ -349,15 +404,24 @@ export const useUsersStore = defineStore('users', () => {
     if (!isSocketInitialized.value) {
       initializeSocket()
     }
-    
-    setTimeout(() => {
-      console.log('Setting user online:', user.id)
-      socket.setUserOnline(String(user.id)).catch((error) => {
+
+    /* Wait for socket connection and then set user online */
+    setTimeout(async () => {
+      try {
+        console.log('Setting user online:', user.id)
+        await socket.setUserOnline(String(user.id))
+        
+        
+        setTimeout(() => {
+          requestOnlineStatus('user-login')
+        }, 500)
+        
+        /* Join all conversations for background notifications */
+        await joinAllUserConversations()
+      } catch (error) {
         console.error('Failed to set user online:', error)
-      })
-      
-      joinAllUserConversations()
-    }, 500)
+      }
+    }, 1000)
   }
   
   const logout = () => {
@@ -459,11 +523,28 @@ export const useUsersStore = defineStore('users', () => {
           id: user.id,
           username: user.username,
           name: user.name,
-          isOnline: user.isOnline || false, // Use database as source of truth for online status
+          isOnline: user.isBot ? true : (user.isOnline || false), // Bots are always online
           avatar: user.avatar,
-          unreadCount: 0
+          unreadCount: 0,
+          isBot: user.isBot || false
         }))
       
+      
+      if (pendingOnlineUserIds.value.length > 0) {
+        console.log('📡 Applying pending online status to loaded users')
+        applyOnlineStatus(pendingOnlineUserIds.value)
+        pendingOnlineUserIds.value = [] // Clear pending status
+      }
+      
+      
+      setTimeout(() => {
+        requestOnlineStatus('users-loaded')
+      }, 300)
+      
+      
+      setTimeout(() => {
+        requestOnlineStatus('users-loaded-delayed')
+      }, 2000)
       
       currentPage.value = response.pagination.page
       totalUsers.value = response.pagination.total
@@ -549,74 +630,4 @@ export const useUsersStore = defineStore('users', () => {
     initializeSocket,
     cleanupSocket
   }
-  
-  // // Auto-initialize socket if user is already logged in from localStorage
-  // const storeInstance = {
-  //   // State
-  //   currentUser,
-  //   users,
-  //   messages,
-  //   selectedUserId,
-  //   currentConversation,
-  //   // Pagination state
-  //   currentPage,
-  //   pageLimit,
-  //   totalUsers,
-  //   totalPages,
-  //   hasNextPage,
-  //   hasPrevPage,
-  //   isLoadingUsers,
-  //   isLoadingConversation,
-  //   isLoadingMessages,
-  //   // Socket state
-  //   isSocketInitialized,
-  //   // Getters
-  //   selectedUser,
-  //   currentMessages,
-  //   onlineUsersCount,
-  //   isAuthenticated,
-  //   // Actions
-  //   selectUser,
-  //   clearSelectedUser,
-  //   setCurrentUser,
-  //   logout,
-  //   addMessage,
-  //   updateUserStatus,
-  //   addUser,
-  //   removeUser,
-  //   // Unread message actions
-  //   incrementUnreadCount,
-  //   resetUnreadCount,
-  //   getUnreadCount,
-  //   // Pagination actions
-  //   loadUsers,
-  //   loadNextPage,
-  //   loadPrevPage,
-  //   loadSpecificPage,
-  //   // Socket actions
-  //   initializeSocket,
-  //   cleanupSocket,
-  //   joinAllUserConversations
-  // }
-  
-  // // Auto-initialize socket if user is already logged in from localStorage
-  // if (currentUser.value && !isSocketInitialized.value) {
-  //   console.log('Auto-initializing socket for persisted user:', currentUser.value?.name)
-  //   initializeSocket()
-    
-  //   // Set user as online via socket - wait a bit for connection to establish
-  //   setTimeout(() => {
-  //     console.log('Setting persisted user online:', currentUser.value?.id)
-  //     if (currentUser.value) {
-  //       socket.setUserOnline(String(currentUser.value.id)).catch((error) => {
-  //         console.error('Failed to set persisted user online:', error)
-  //       })
-        
-  //       // Join all user conversations for background notifications
-  //       joinAllUserConversations()
-  //     }
-  //   }, 500)
-  // }
-  
-  // return storeInstance
-})
+});
