@@ -76,19 +76,36 @@ export function useSocket() {
   }
 
   // Emit an event to the server
-  const emit = (event: string, data?: any) => {
-    if (socket.value?.connected) {
-      socket.value.emit(event, data)
-    } else if (socket.value) {
-      // If socket exists but not connected, wait for connection
-      console.log('Socket not connected yet, waiting for connection to emit:', event)
-      socket.value.once('connect', () => {
-        console.log('Socket connected, now emitting delayed event:', event)
-        socket.value!.emit(event, data)
-      })
-    } else {
-      console.warn('Socket not initialized, cannot emit event:', event)
-    }
+  const emit = (event: string, data?: any): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (socket.value?.connected) {
+        socket.value.emit(event, data)
+        resolve()
+      } else if (socket.value) {
+        // If socket exists but not connected, wait for connection
+        console.log('Socket not connected yet, waiting for connection to emit:', event)
+        
+        // Set up timeout for connection
+        const timeout = setTimeout(() => {
+          reject(new Error(`Socket connection timeout for event: ${event}`))
+        }, 10000) // 10 second timeout
+        
+        socket.value.once('connect', () => {
+          clearTimeout(timeout)
+          console.log('Socket connected, now emitting delayed event:', event)
+          socket.value!.emit(event, data)
+          resolve()
+        })
+        
+        socket.value.once('connect_error', (error) => {
+          clearTimeout(timeout)
+          reject(error)
+        })
+      } else {
+        console.warn('Socket not initialized, cannot emit event:', event)
+        reject(new Error('Socket not initialized'))
+      }
+    })
   }
 
   // Listen for an event from the server
@@ -106,23 +123,42 @@ export function useSocket() {
   }
 
   // User online/offline methods
-  const setUserOnline = (userId: string) => {
-    emit('user:online', { userId })
+  const setUserOnline = async (userId: string) => {
+    try {
+      await emit('user:online', { userId })
+    } catch (error) {
+      console.error('Failed to set user online:', error)
+    }
   }
 
-  const setUserOffline = (userId: string) => {
-    emit('user:offline', { userId })
+  const setUserOffline = async (userId: string) => {
+    try {
+      await emit('user:offline', { userId })
+    } catch (error) {
+      console.error('Failed to set user offline:', error)
+    }
   }
 
   // Conversation methods
-  const joinConversation = (conversationId: string, userId: string) => {
+  const joinConversation = async (conversationId: string, userId: string) => {
     console.log('🚪 Joining conversation:', { conversationId, userId });
-    emit('conversation:join', { conversationId, userId })
+    try {
+      await emit('conversation:join', { conversationId, userId })
+      console.log('✅ Successfully joined conversation:', conversationId)
+    } catch (error) {
+      console.error('❌ Failed to join conversation:', error)
+      throw error
+    }
   }
 
-  const leaveConversation = (conversationId: string, userId: string) => {
+  const leaveConversation = async (conversationId: string, userId: string) => {
     console.log('🚪 Leaving conversation:', { conversationId, userId });
-    emit('conversation:leave', { conversationId, userId })
+    try {
+      await emit('conversation:leave', { conversationId, userId })
+      console.log('✅ Successfully left conversation:', conversationId)
+    } catch (error) {
+      console.error('❌ Failed to leave conversation:', error)
+    }
   }
 
   // Message methods

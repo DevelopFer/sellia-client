@@ -229,7 +229,11 @@ export const useUsersStore = defineStore('users', () => {
       }))
       
       // Join the conversation room for real-time message notifications
-      socket.joinConversation(conversation.id, currentUserIdStr)
+      // Don't await - let it happen in the background
+      socket.joinConversation(conversation.id, currentUserIdStr).catch((error) => {
+        console.error('Failed to join conversation room:', error)
+        // Continue execution even if room join fails
+      })
       
     } catch (error) {
       console.error('Failed to load conversation:', error)
@@ -264,7 +268,9 @@ export const useUsersStore = defineStore('users', () => {
     // Set user as online via socket - wait a bit for connection to establish
     setTimeout(() => {
       console.log('Setting user online:', user.id)
-      socket.setUserOnline(String(user.id))
+      socket.setUserOnline(String(user.id)).catch((error) => {
+        console.error('Failed to set user online:', error)
+      })
     }, 500)
   }
   
@@ -512,7 +518,9 @@ export const useUsersStore = defineStore('users', () => {
     setTimeout(() => {
       console.log('Setting persisted user online:', currentUser.value?.id)
       if (currentUser.value) {
-        socket.setUserOnline(String(currentUser.value.id))
+        socket.setUserOnline(String(currentUser.value.id)).catch((error) => {
+          console.error('Failed to set persisted user online:', error)
+        })
       }
     }, 500)
   }
