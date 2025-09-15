@@ -4,7 +4,6 @@ import type { User, Message, CurrentUser, Conversation } from '@/types/chat'
 import { usersApi, conversationsApi, messagesApi } from '@/api'
 import { useSocket, type UserStatusEvent } from '@/composables/useSocket'
 
-// LocalStorage utilities for user persistence
 const CURRENT_USER_KEY = 'sellia_current_user'
 
 const saveCurrentUserToStorage = (user: CurrentUser | null) => {
