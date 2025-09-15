@@ -156,18 +156,40 @@ export const useUsersStore = defineStore('users', () => {
 
   
     socket.onNewMessage((event) => {
-      console.log('New message received:', event)
+      console.log('🔔 New message received via socket:', event)
+      console.log('🔍 Event details:', {
+        conversationId: event.conversationId,
+        messageId: event.message?.id,
+        senderId: event.message?.senderId,
+        senderName: event.message?.sender?.name,
+        content: event.message?.content,
+        timestamp: event.timestamp
+      })
       
-      if (!currentUser.value) return
+      if (!currentUser.value) {
+        console.warn('❌ No current user, ignoring message')
+        return
+      }
       
       const messageFromUserId = event.message.senderId
       const messageConversationId = event.conversationId
       const isFromCurrentUser = String(event.message.senderId) === String(currentUser.value.id)
       
+      console.log('🔍 Message analysis:', {
+        messageFromUserId,
+        messageConversationId,
+        isFromCurrentUser,
+        currentConversationId: currentConversation.value?.id,
+        hasActiveConversation: !!currentConversation.value
+      })
+      
       const isActiveConversation = currentConversation.value && 
         String(currentConversation.value.id) === String(messageConversationId)
       
+      console.log('🎯 Is active conversation:', isActiveConversation)
+      
       if (isActiveConversation) {
+        console.log('✅ Adding message to active conversation')
         
         messages.value.push({
           id: event.message.id,
@@ -178,9 +200,13 @@ export const useUsersStore = defineStore('users', () => {
           timestamp: new Date(event.message.createdAt),
           sender: event.message.sender
         })
-      } else if (!isFromCurrentUser) {
         
+        console.log('📝 Message added, total messages now:', messages.value.length)
+      } else if (!isFromCurrentUser) {
+        console.log('📬 Message for different conversation, incrementing unread count')
         incrementUnreadCount(messageFromUserId)
+      } else {
+        console.log('🔕 Message ignored - not for active conversation and is from current user')
       }
     })
 
