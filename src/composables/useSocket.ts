@@ -11,8 +11,12 @@ export function useSocket() {
   // Get the API URL from environment variables and convert to WebSocket URL
   const getSocketUrl = () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
-    // Remove '/api' suffix if present and ensure we have the base URL
     const baseUrl = apiUrl.replace('/api', '')
+    
+    if (baseUrl.startsWith('https://')) {
+      console.log('Production environment detected, using HTTPS socket URL')
+    }
+    
     return baseUrl
   }
 
@@ -33,6 +37,8 @@ export function useSocket() {
         timeout: 20000,
         autoConnect: true,
         forceNew: false,
+        upgrade: true,
+        rememberUpgrade: true,
       })
 
       // Connection event listeners
@@ -51,6 +57,11 @@ export function useSocket() {
       socket.value.on('connect_error', (error) => {
         console.error('🔥 Socket connection error:', error)
         console.error('Attempted URL:', socketUrl)
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        })
         connectionError.value = error.message
         isConnected.value = false
       })
