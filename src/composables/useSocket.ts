@@ -75,6 +75,30 @@ export function useSocket() {
     return socket.value?.connected || false
   }
 
+  // Wait for socket connection with timeout
+  const waitForConnection = (timeoutMs: number = 5000): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (socket.value?.connected) {
+        resolve(true)
+        return
+      }
+
+      const timeout = setTimeout(() => {
+        resolve(false)
+      }, timeoutMs)
+
+      if (socket.value) {
+        socket.value.once('connect', () => {
+          clearTimeout(timeout)
+          resolve(true)
+        })
+      } else {
+        clearTimeout(timeout)
+        resolve(false)
+      }
+    })
+  }
+
   // Emit an event to the server
   const emit = (event: string, data?: any): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -204,6 +228,7 @@ export function useSocket() {
     on,
     off,
     isReady,
+    waitForConnection,
     
     // User status methods
     setUserOnline,

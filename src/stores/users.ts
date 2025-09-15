@@ -193,6 +193,19 @@ export const useUsersStore = defineStore('users', () => {
       return
     }
 
+    // Ensure socket is initialized before conversation operations
+    if (!isSocketInitialized.value) {
+      console.log('Socket not initialized, initializing now...')
+      initializeSocket()
+    }
+
+    // Wait for socket connection before proceeding
+    const isConnected = await socket.waitForConnection(5000)
+    if (!isConnected) {
+      console.error('Socket connection timeout, cannot join conversation')
+      return
+    }
+
     try {
       
       selectedUserId.value = userId
@@ -255,6 +268,19 @@ export const useUsersStore = defineStore('users', () => {
   const joinAllUserConversations = async () => {
     if (!currentUser.value) {
       console.warn('No current user, cannot join conversations')
+      return
+    }
+
+    // Ensure socket is initialized and connected
+    if (!isSocketInitialized.value) {
+      console.log('Socket not initialized for joining conversations, skipping...')
+      return
+    }
+
+    // Wait for socket connection
+    const isConnected = await socket.waitForConnection(5000)
+    if (!isConnected) {
+      console.warn('Socket connection timeout, cannot join conversations')
       return
     }
 
