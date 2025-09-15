@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, Message, CurrentUser, Conversation } from '@/types/chat'
 import { usersApi, conversationsApi, messagesApi } from '@/api'
-import { useSocket, type UserStatusEvent } from '@/composables/useSocket'
+import { useSocket } from '@/composables/useSocket'
+import type { UserStatusEvent } from '@/composables/useSocket'
 
 const CURRENT_USER_KEY = 'sellia_current_user'
 
@@ -48,6 +49,7 @@ export const useUsersStore = defineStore('users', () => {
   const messages = ref<Message[]>([])
   const isLoadingConversation = ref(false)
   const isLoadingMessages = ref(false)
+  const isSendingMessage = ref(false)
   
   const selectedUserId = ref<string | number | null>(null)
 
@@ -156,30 +158,29 @@ export const useUsersStore = defineStore('users', () => {
     socket.onNewMessage((event) => {
       console.log('New message received:', event)
       
-  
-      if (currentUser.value && String(event.message.senderId) !== String(currentUser.value.id)) {
-        const messageFromUserId = event.message.senderId
-        const messageConversationId = event.conversationId
+      if (!currentUser.value) return
+      
+      const messageFromUserId = event.message.senderId
+      const messageConversationId = event.conversationId
+      const isFromCurrentUser = String(event.message.senderId) === String(currentUser.value.id)
+      
+      const isActiveConversation = currentConversation.value && 
+        String(currentConversation.value.id) === String(messageConversationId)
+      
+      if (isActiveConversation) {
         
-  
-        const isActiveConversation = currentConversation.value && 
-          String(currentConversation.value.id) === String(messageConversationId)
+        messages.value.push({
+          id: event.message.id,
+          content: event.message.content,
+          senderId: event.message.senderId,
+          conversationId: event.message.conversationId,
+          createdAt: event.message.createdAt,
+          timestamp: new Date(event.message.createdAt),
+          sender: event.message.sender
+        })
+      } else if (!isFromCurrentUser) {
         
-        if (isActiveConversation) {
-  
-          messages.value.push({
-            id: event.message.id,
-            content: event.message.content,
-            senderId: event.message.senderId,
-            conversationId: event.message.conversationId,
-            createdAt: event.message.createdAt,
-            timestamp: new Date(event.message.createdAt),
-            sender: event.message.sender
-          })
-        } else {
-  
-          incrementUnreadCount(messageFromUserId)
-        }
+        incrementUnreadCount(messageFromUserId)
       }
     })
 
@@ -246,6 +247,18 @@ export const useUsersStore = defineStore('users', () => {
 
     socket.on('conversation:user_left', (data: { conversationId: string; userId: string }) => {
       console.log('👤 User left conversation:', data)
+    })
+
+
+    socket.on('user:joined', (data: { user: User; timestamp: string }) => {
+      console.log('🎉 New user joined:', data.user)
+      
+
+      const existingUser = users.value.find(u => String(u.id) === String(data.user.id))
+      if (!existingUser) {
+        users.value.unshift(data.user) // Add to the beginning of the list
+        console.log('✅ Added new user to the list:', data.user.username)
+      }
     })
   }
 
@@ -446,29 +459,22 @@ export const useUsersStore = defineStore('users', () => {
   const addMessage = async (content: string) => {
     if (!content.trim() || !currentConversation.value || !currentUser.value) return
     
+    isSendingMessage.value = true
     try {
-      const newMessage = await messagesApi.sendMessage({
+      
+      await messagesApi.sendMessage({
         content: content.trim(),
         senderId: String(currentUser.value.id),
         conversationId: currentConversation.value.id,
         messageType: 'text'
       })
       
-      messages.value.push({
-        id: newMessage.id,
-        content: newMessage.content,
-        senderId: newMessage.senderId,
-        conversationId: newMessage.conversationId,
-        createdAt: newMessage.createdAt,
-        timestamp: new Date(newMessage.createdAt),
-        sender: {
-          id: newMessage.sender.id,
-          name: newMessage.sender.name || newMessage.sender.username
-        }
-      })
+      
       
     } catch (error) {
       console.error('Failed to send message:', error)
+    } finally {
+      isSendingMessage.value = false
     }
   }
   
@@ -595,6 +601,7 @@ export const useUsersStore = defineStore('users', () => {
     isLoadingUsers,
     isLoadingConversation,
     isLoadingMessages,
+    isSendingMessage,
     
     
     isSocketInitialized,
