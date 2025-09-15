@@ -8,15 +8,27 @@ const connectionError = ref<string | null>(null)
 
 // Socket service composable
 export function useSocket() {
+  // Get the API URL from environment variables and convert to WebSocket URL
+  const getSocketUrl = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+    // Remove '/api' suffix if present and ensure we have the base URL
+    const baseUrl = apiUrl.replace('/api', '')
+    return baseUrl
+  }
+
   // Connect to the Socket.IO server
-  const connect = (serverUrl: string = 'http://localhost:3001') => {
+  const connect = (serverUrl?: string) => {
     if (socket.value?.connected) {
       console.log('Socket already connected')
       return
     }
 
+    // Use provided URL or derive from environment
+    const socketUrl = serverUrl || getSocketUrl()
+    console.log('Connecting to Socket.IO server:', socketUrl)
+
     try {
-      socket.value = io(serverUrl, {
+      socket.value = io(socketUrl, {
         transports: ['websocket'],
         timeout: 20000,
       })
