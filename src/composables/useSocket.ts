@@ -29,24 +29,28 @@ export function useSocket() {
 
     try {
       socket.value = io(socketUrl, {
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
         timeout: 20000,
+        autoConnect: true,
+        forceNew: false,
       })
 
       // Connection event listeners
       socket.value.on('connect', () => {
-        console.log('Socket connected:', socket.value?.id)
+        console.log('✅ Socket connected successfully:', socket.value?.id)
+        console.log('Socket URL:', socketUrl)
         isConnected.value = true
         connectionError.value = null
       })
 
       socket.value.on('disconnect', (reason) => {
-        console.log('Socket disconnected:', reason)
+        console.log('❌ Socket disconnected:', reason)
         isConnected.value = false
       })
 
       socket.value.on('connect_error', (error) => {
-        console.error('Socket connection error:', error)
+        console.error('🔥 Socket connection error:', error)
+        console.error('Attempted URL:', socketUrl)
         connectionError.value = error.message
         isConnected.value = false
       })
@@ -66,12 +70,24 @@ export function useSocket() {
     }
   }
 
+  // Check if socket is ready for communication
+  const isReady = () => {
+    return socket.value?.connected || false
+  }
+
   // Emit an event to the server
   const emit = (event: string, data?: any) => {
     if (socket.value?.connected) {
       socket.value.emit(event, data)
+    } else if (socket.value) {
+      // If socket exists but not connected, wait for connection
+      console.log('Socket not connected yet, waiting for connection to emit:', event)
+      socket.value.once('connect', () => {
+        console.log('Socket connected, now emitting delayed event:', event)
+        socket.value!.emit(event, data)
+      })
     } else {
-      console.warn('Socket not connected, cannot emit event:', event)
+      console.warn('Socket not initialized, cannot emit event:', event)
     }
   }
 
@@ -133,6 +149,7 @@ export function useSocket() {
     emit,
     on,
     off,
+    isReady,
     
     // User status methods
     setUserOnline,
